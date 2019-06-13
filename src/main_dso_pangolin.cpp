@@ -50,22 +50,36 @@
 #include "IOWrapper/Pangolin/PangolinDSOViewer.h"
 #include "IOWrapper/OutputWrapper/SampleOutputWrapper.h"
 
-
+//参数文件地址
+//a monochrome 16bit or 8bit image containing the vignette as pixelwise attenuation factors.
 std::string vignette = "";
+//gamma calibration file
 std::string gammaCalib = "";
+//archive containing images
 std::string source = "";
+// a geometric camera calibration file几何相机内参
 std::string calib = "";
 double rescale = 1;
+//reverse=1: play sequence in reverse
 bool reverse = false;
 bool disableROS = false;
+//start=X: start at frame X
 int start=0;
+//end=X: end at frame X
 int end=100000;
+//prefetch=1: load into memory & rectify all images before running DSO.
 bool prefetch = false;
-float playbackSpeed=0;	// 0 for linearize (play as fast as possible, while sequentializing tracking & mapping). otherwise, factor on timestamps.
+// 0 for linearize (play as fast as possible, while sequentializing tracking & mapping). otherwise, factor on timestamps.
+//speed=X: force execution at X times real-time speed (0 = not enforcing real-time)
+float playbackSpeed=0;	
 bool preload=false;
+//sampleoutput=1: register a "SampleOutputWrapper", printing some sample output data to the commandline. meant as example.
 bool useSampleOutput=false;
 
 
+//mode=0 use iff a photometric calibration exists (e.g. TUM monoVO dataset).
+//mode=1 use iff NO photometric calibration exists (e.g. ETH EuRoC MAV dataset).
+//mode=2 use iff images are not photometrically distorted (e.g. synthetic datasets).
 int mode=0;
 
 bool firstRosSpin=false;
@@ -92,6 +106,12 @@ void exitThread()
 }
 
 
+/**preset的设置
+ * preset=0: default settings (2k pts etc.), not enforcing real-time execution
+ * preset=1: default settings (2k pts etc.), enforcing 1x real-time execution
+ * preset=2: fast settings (800 pts etc.), not enforcing real-time execution. WARNING: overwrites image resolution with 424 x 320.
+ * preset=3: fast settings (800 pts etc.), enforcing 5x real-time execution. WARNING: overwrites image resolution with 424 x 320.
+ */
 
 void settingsDefault(int preset)
 {
@@ -354,10 +374,12 @@ void parseArgument(char* arg)
 int main( int argc, char** argv )
 {
 	//setlocale(LC_ALL, "");
+	//解析输入调用程序的参数，具体看parseArgument函数
 	for(int i=1; i<argc;i++)
 		parseArgument(argv[i]);
 
 	// hook crtl+C.
+	//新建一个用于捕捉crtl+C的线程
 	boost::thread exThread = boost::thread(exitThread);
 
 
@@ -368,8 +390,8 @@ int main( int argc, char** argv )
 
 	if(setting_photometricCalibration > 0 && reader->getPhotometricGamma() == 0)
 	{
-		printf("ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ");
-		exit(1);
+	  printf("ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ");
+	  exit(1);
 	}
 
 
@@ -377,6 +399,7 @@ int main( int argc, char** argv )
 
 	int lstart=start;
 	int lend = end;
+	//这个一个在循环读取图片的一个方向开关
 	int linc = 1;
 	if(reverse)
 	{
@@ -416,11 +439,16 @@ int main( int argc, char** argv )
 
 
     // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
+    //runthread里面装的是一个lambda表达式
     std::thread runthread([&]() {
+	//要处理的图片序列
         std::vector<int> idsToPlay;
+	//播放图片的时间
         std::vector<double> timesToPlayAt;
+	//linc是方向
         for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
         {
+	    
             idsToPlay.push_back(i);
             if(timesToPlayAt.size() == 0)
             {
@@ -434,24 +462,27 @@ int main( int argc, char** argv )
             }
         }
 
-
+	
+	//preload为真，加载所有原始图片到这里
         std::vector<ImageAndExposure*> preloadedImages;
         if(preload)
         {
             printf("LOADING ALL IMAGES!\n");
+	    //遍历idsToPlay
             for(int ii=0;ii<(int)idsToPlay.size(); ii++)
             {
                 int i = idsToPlay[ii];
                 preloadedImages.push_back(reader->getImage(i));
             }
         }
-
+	
+	//记录当前时间到tv_start
         struct timeval tv_start;
         gettimeofday(&tv_start, NULL);
         clock_t started = clock();
         double sInitializerOffset=0;
 
-
+	//遍历idsToPlay
         for(int ii=0;ii<(int)idsToPlay.size(); ii++)
         {
             if(!fullSystem->initialized)	// if not initialized: reset start time.
@@ -473,13 +504,18 @@ int main( int argc, char** argv )
 
 
             bool skipFrame=false;
+	    //playbackSpeed==0表示线性播放，意思是系统能处理多快就播放多快的图片
+	    //playbackSpeed!=0表示按照playbackSpeed速度播放图片
             if(playbackSpeed!=0)
             {
+		//记录当前时间到tv_now
                 struct timeval tv_now; gettimeofday(&tv_now, NULL);
                 double sSinceStart = sInitializerOffset + ((tv_now.tv_sec-tv_start.tv_sec) + (tv_now.tv_usec-tv_start.tv_usec)/(1000.0f*1000.0f));
-
+		
+		//时间还没到timesToPlayAt[ii]，等待一会再执行fullSystem->addActiveFrame
                 if(sSinceStart < timesToPlayAt[ii])
                     usleep((int)((timesToPlayAt[ii]-sSinceStart)*1000*1000));
+		//超过时间了，放弃这一帧
                 else if(sSinceStart > timesToPlayAt[ii]+0.5+0.1*(ii%2))
                 {
                     printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
@@ -489,6 +525,7 @@ int main( int argc, char** argv )
 
 
 
+            //终于给系统喂图片了！！
             if(!skipFrame) fullSystem->addActiveFrame(img, i);
 
 
@@ -567,22 +604,26 @@ int main( int argc, char** argv )
     if(viewer != 0)
         viewer->run();
 
+    //主线程在这里等待runthread线程执行完
+    //也就是说有3个线程，一个是主线程main在执行viewer->run();
+    //一个是exThread用于捕捉ctrl+c
+    //一个是runthread，这个线程才是真正的dso
     runthread.join();
 
-	for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
-	{
-		ow->join();
-		delete ow;
-	}
+    for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
+    {
+	    ow->join();
+	    delete ow;
+    }
 
 
 
-	printf("DELETE FULLSYSTEM!\n");
-	delete fullSystem;
+    printf("DELETE FULLSYSTEM!\n");
+    delete fullSystem;
 
-	printf("DELETE READER!\n");
-	delete reader;
+    printf("DELETE READER!\n");
+    delete reader;
 
-	printf("EXIT NOW!\n");
-	return 0;
+    printf("EXIT NOW!\n");
+    return 0;
 }

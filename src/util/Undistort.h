@@ -55,8 +55,8 @@ public:
 
 	float* getG() {if(!valid) return 0; else return G;};
 private:
-    float G[256*256];
-    int GDepth;
+	float G[256*256];
+	int GDepth;
 	float* vignetteMap;
 	float* vignetteMapInv;
 	int w,h;
@@ -88,8 +88,9 @@ public:
 	PhotometricUndistorter* photometricUndist;
 
 protected:
-    int w, h, wOrg, hOrg, wUp, hUp;
-    int upsampleUndistFactor;
+	int w, h, wOrg, hOrg, wUp, hUp;
+	int upsampleUndistFactor;
+	//相机内参
 	Mat33 K;
 	VecX parsOrg;
 	bool valid;
@@ -102,7 +103,8 @@ protected:
 
 	void makeOptimalK_crop();
 	void makeOptimalK_full();
-
+	
+	//从configFileName读取相机内参放入类元素K中
 	void readFromFile(const char* configFileName, int nPars, std::string prefix = "");
 };
 

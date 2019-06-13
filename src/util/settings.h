@@ -127,7 +127,8 @@ extern bool setting_forceAceptStep;
 
 extern float setting_huberTH;
 
-
+//false: disable logging of eigenvalues etc. (good for performance)
+//是否生成log
 extern bool setting_logStuff;
 extern float benchmarkSetting_fxfyfac;
 extern int benchmarkSetting_width;
@@ -171,6 +172,7 @@ extern bool setting_fullResetRequested;
 
 extern bool setting_debugout_runquiet;
 
+//nogui=1: disable gui (good for performance)
 extern bool disableAllDisplay;
 extern bool disableReconfigure;
 
@@ -179,13 +181,14 @@ extern bool setting_onlyLogKFPoses;
 
 
 
-
+//save=1: save lots of images for video creation
 extern bool debugSaveImages;
 
 
 extern int sparsityFactor;
 extern bool goStepByStep;
 extern bool plotStereoImages;
+//nomt=1: single-threaded execution
 extern bool multiThreading;
 
 extern float freeDebugParam1;

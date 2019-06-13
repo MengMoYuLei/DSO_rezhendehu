@@ -285,7 +285,8 @@ Undistort* Undistort::getUndistorterForFile(std::string configFilename, std::str
 
 	Undistort* u;
 
-    // for backwards-compatibility: Use RadTan model for 8 parameters.
+	// for backwards-compatibility: Use RadTan model for 8 parameters.
+	//向后兼容，对于8个参数使用UndistortRadTan
 	if(std::sscanf(l1.c_str(), "%f %f %f %f %f %f %f %f",
 			&ic[0], &ic[1], &ic[2], &ic[3],
 			&ic[4], &ic[5], &ic[6], &ic[7]) == 8)
@@ -318,6 +319,7 @@ Undistort* Undistort::getUndistorterForFile(std::string configFilename, std::str
 
 
     // clean model selection implementation.
+    //这个是读取另一种格式的内参文件，也就是前面有字的，比如KannalaBrandt
     else if(std::sscanf(l1.c_str(), "KannalaBrandt %f %f %f %f %f %f %f %f",
             &ic[0], &ic[1], &ic[2], &ic[3],
             &ic[4], &ic[5], &ic[6], &ic[7]) == 8)
@@ -331,6 +333,7 @@ Undistort* Undistort::getUndistorterForFile(std::string configFilename, std::str
             &ic[0], &ic[1], &ic[2], &ic[3],
             &ic[4], &ic[5], &ic[6], &ic[7]) == 8)
     {
+	//和上面的就是第二个参数的区别
         u = new UndistortRadTan(configFilename.c_str(), false);
         if(!u->isValid()) {delete u; return 0; }
     }

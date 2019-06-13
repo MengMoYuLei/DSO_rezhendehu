@@ -150,6 +150,8 @@ public:
 			getdir (path, files);
 
 
+		//Undistort::getUndistorterForFile是一个静态函数，所以可以不用先建立一个Undistort对象
+		
 		undistort = Undistort::getUndistorterForFile(calibFile, gammaFile, vignetteFile);
 
 
@@ -360,7 +362,9 @@ private:
 
 	std::vector<ImageAndExposure*> preloadedImages;
 	std::vector<std::string> files;
+	//时间戳集合
 	std::vector<double> timestamps;
+	//曝光时间集合
 	std::vector<float> exposures;
 
 	int width, height;

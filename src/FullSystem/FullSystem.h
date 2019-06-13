@@ -156,9 +156,10 @@ public:
 	bool isLost;
 	bool initFailed;
 	bool initialized;
+	//是否开启实时跟踪
 	bool linearizeOperation;
 
-
+	//读取gamma矫正参数
 	void setGammaFunction(float* BInv);
 	void setOriginalCalib(const VecXf &originalCalib, int originalW, int originalH);
 
